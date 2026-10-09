@@ -1,5 +1,12 @@
 import { computed, ref } from 'vue'
-import { standardizeStreetText, streetExactKeys, streetInputKeys, stripStreetSuffix } from './normalization.js'
+import {
+  compactStreetKey,
+  standardizeStreetText,
+  streetExactKeys,
+  streetInputKeys,
+  stripDirectionalSuffix,
+  stripStreetSuffix,
+} from './normalization.js'
 
 function cloneFeature(feature, latest = false, index = 0) {
   return {
@@ -34,6 +41,7 @@ export function useStreetGame() {
   const gaveUp = ref(false)
   const sortKey = ref('found')
   const exactIndex = new Map()
+  const directionlessIndex = new Map()
   const fallbackIndex = new Map()
   const streetsByKey = new Map()
 
@@ -84,6 +92,7 @@ export function useStreetGame() {
     streets.value = data.streets ?? []
     totalLength.value = data.totalLength ?? 0
     exactIndex.clear()
+    directionlessIndex.clear()
     fallbackIndex.clear()
     streetsByKey.clear()
 
@@ -98,7 +107,18 @@ export function useStreetGame() {
         if (!exactIndex.has(alias)) exactIndex.set(alias, new Set())
         exactIndex.get(alias).add(street.properties.clean)
       }
-      for (const alias of street.properties.fallbackAliases ?? []) {
+
+      const exactDisplayKey = compactStreetKey(street.properties.display)
+      const directionlessKey = compactStreetKey(stripDirectionalSuffix(street.properties.display))
+      if (directionlessKey && directionlessKey !== exactDisplayKey) {
+        if (!directionlessIndex.has(directionlessKey)) directionlessIndex.set(directionlessKey, new Set())
+        directionlessIndex.get(directionlessKey).add(street.properties.clean)
+      }
+
+      const fallbackAliases = new Set(street.properties.fallbackAliases ?? [])
+      const derivedFallback = compactStreetKey(stripStreetSuffix(street.properties.display))
+      if (derivedFallback && derivedFallback !== exactDisplayKey) fallbackAliases.add(derivedFallback)
+      for (const alias of fallbackAliases) {
         if (!fallbackIndex.has(alias)) fallbackIndex.set(alias, new Set())
         fallbackIndex.get(alias).add(street.properties.clean)
       }
@@ -134,6 +154,11 @@ export function useStreetGame() {
     const matches = new Set()
     for (const inputKey of streetExactKeys(standardizedInput)) {
       for (const streetKey of exactIndex.get(inputKey) ?? []) matches.add(streetKey)
+    }
+    if (matches.size) return { valid: true, added: addKeys([...matches], true) }
+
+    for (const inputKey of streetExactKeys(standardizedInput)) {
+      for (const streetKey of directionlessIndex.get(inputKey) ?? []) matches.add(streetKey)
     }
     if (matches.size) return { valid: true, added: addKeys([...matches], true) }
 

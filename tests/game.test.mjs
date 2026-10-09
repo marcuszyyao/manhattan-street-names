@@ -11,6 +11,10 @@ function loadedGame() {
   return game.load().then(() => game)
 }
 
+function displays(game) {
+  return game.guessedStreets.value.map((street) => street.properties.display).sort()
+}
+
 test.before(() => {
   globalThis.fetch = async () => ({ ok: true, json: async () => data })
 })
@@ -55,6 +59,66 @@ test('an existing exact name still wins over broader suffixless aliases', async 
 
   assert.deepEqual(game.submitName('Broadway'), { valid: true, added: true })
   assert.deepEqual(game.guessedStreets.value.map((street) => street.properties.display), ['BROADWAY'])
+})
+
+test('accepts Queensboro Bridge without the Ed Koch honorific', async () => {
+  for (const input of ['Queensboro', 'Queensboro Bridge', 'Ed Koch Queensboro Bridge']) {
+    const game = await loadedGame()
+    assert.deepEqual(game.submitName(input), { valid: true, added: true })
+    assert.deepEqual(displays(game), ['ED KOCH QUEENSBORO BRG'])
+  }
+})
+
+test('preserves existing bridge spelling aliases', async () => {
+  const game = await loadedGame()
+
+  assert.deepEqual(game.submitName('Williamsburg Bridge Bike Pth'), { valid: true, added: true })
+  assert.deepEqual(displays(game), ['WILLIAMSBURG BRIDGE BIKE PATH'])
+})
+
+test('directionless place names reveal every directional side', async () => {
+  const cases = [
+    ['Gramercy Park', ['GRAMERCY PARK E', 'GRAMERCY PARK N', 'GRAMERCY PARK S', 'GRAMERCY PARK W']],
+    ['Union Square', ['UNION SQ E', 'UNION SQ W']],
+    ['Washington Square', ['WASHINGTON SQ E', 'WASHINGTON SQ N', 'WASHINGTON SQ S', 'WASHINGTON SQ W']],
+  ]
+
+  for (const [input, expected] of cases) {
+    const game = await loadedGame()
+    assert.deepEqual(game.submitName(input), { valid: true, added: true })
+    assert.deepEqual(displays(game), expected)
+  }
+})
+
+test('a suffixless guess includes streets with terminal directions', async () => {
+  const game = await loadedGame()
+
+  assert.deepEqual(game.submitName('Park'), { valid: true, added: true })
+  assert.ok(displays(game).includes('PARK AVE'))
+  assert.ok(displays(game).includes('PARK AVE S'))
+})
+
+test('explicit suffixes and directions still narrow the match', async () => {
+  const cases = [
+    ['Park Avenue', ['PARK AVE']],
+    ['Park Avenue South', ['PARK AVE S']],
+    ['Gramercy Park East', ['GRAMERCY PARK E']],
+    ['Union Square West', ['UNION SQ W']],
+    ['Washington Square North', ['WASHINGTON SQ N']],
+  ]
+
+  for (const [input, expected] of cases) {
+    const game = await loadedGame()
+    assert.deepEqual(game.submitName(input), { valid: true, added: true })
+    assert.deepEqual(displays(game), expected)
+  }
+})
+
+test('a nonexistent explicit direction does not broaden to the whole group', async () => {
+  const game = await loadedGame()
+
+  assert.deepEqual(game.submitName('Union Square South'), { valid: false, added: false })
+  assert.deepEqual(displays(game), [])
 })
 
 test('giving up preserves the earned score and separates found from missed streets', async () => {

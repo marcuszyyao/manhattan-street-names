@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { ordinal, standardizeStreetText, streetExactKeys, streetInputKeys, stripStreetSuffix } from '../src/normalization.js'
+import {
+  ordinal,
+  standardizeStreetText,
+  streetExactKeys,
+  streetInputKeys,
+  stripDirectionalSuffix,
+  stripStreetSuffix,
+} from '../src/normalization.js'
 
 test('formats numeric ordinals correctly', () => {
   assert.equal(ordinal(1), '1ST')
@@ -16,9 +23,14 @@ test('accepts common Manhattan street spellings', () => {
   assert.equal(standardizeStreetText('forty second street'), '42ND ST')
   assert.equal(standardizeStreetText('Fifth Avenue'), '5TH AVE')
   assert.equal(stripStreetSuffix('West End Avenue'), 'W END')
+  assert.equal(stripStreetSuffix('Park Avenue South'), 'PARK')
+  assert.equal(stripDirectionalSuffix('Gramercy Park East'), 'GRAMERCY PARK')
   assert.ok(streetInputKeys('Avenue A').includes('A'))
   assert.ok(streetInputKeys('Sixth Avenue').includes('AVEOFTHEAMERICAS'))
   assert.ok(streetInputKeys('FDR Drive').includes('FRANKLINDROOSEVELTDR'))
+  assert.ok(streetExactKeys('Queensboro Bridge').includes('QUEENSBOROBRG'))
+  assert.ok(streetExactKeys('Union Square').includes('UNIONSQ'))
+  assert.ok(streetExactKeys('Ed Koch Queensboro Bridge').includes('QUEENSBORO'))
 })
 
 test('generated game data has valid scoring and core Manhattan streets', async () => {

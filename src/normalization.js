@@ -18,12 +18,15 @@ const SUFFIX_REPLACEMENTS = [
   ['DRIVE', 'DR'],
 ]
 
+export const DIRECTIONAL_SUFFIXES = new Set(['E', 'N', 'S', 'W'])
+
 export const STREET_SUFFIXES = new Set([
   'HIGHWAY', 'HWY', 'BLVD', 'TERRACE', 'TER', 'ST', 'STREET', 'WAY',
   'BOULEVARD', 'TUNNEL', 'TUNL', 'AVE', 'AVENUE', 'FREEWAY', 'FWY',
   'CIR', 'CIRCLE', 'ALLEY', 'ALY', 'ROAD', 'RD', 'PARK', 'LOOP',
   'LANE', 'LN', 'STAIRWAY', 'STAIRS', 'COURT', 'CT', 'PLACE', 'PL',
   'PROMENADE', 'DRIVE', 'DR', 'BRIDGE', 'BRG', 'PLAZA', 'PKWY',
+  'SQUARE', 'SQ', ...DIRECTIONAL_SUFFIXES,
 ])
 
 const SMALL_ORDINALS = [
@@ -102,15 +105,35 @@ export function stripStreetSuffix(input) {
   return tokens.join(' ')
 }
 
+export function stripDirectionalSuffix(input) {
+  const tokens = standardizeStreetText(input).split(' ')
+  if (tokens.length > 1 && DIRECTIONAL_SUFFIXES.has(tokens.at(-1))) tokens.pop()
+  return tokens.join(' ')
+}
+
 export function streetExactKeys(input) {
   const standardized = standardizeStreetText(input)
   const keys = new Set([standardized.replace(/[^0-9A-Z]/g, '')])
+
+  for (const [long, short] of [['BRIDGE', 'BRG'], ['SQUARE', 'SQ']]) {
+    if (new RegExp(`\\b${long}\\b`).test(standardized)) {
+      keys.add(standardized.replace(new RegExp(`\\b${long}\\b`, 'g'), short).replace(/[^0-9A-Z]/g, ''))
+    }
+    if (new RegExp(`\\b${short}\\b`).test(standardized)) {
+      keys.add(standardized.replace(new RegExp(`\\b${short}\\b`, 'g'), long).replace(/[^0-9A-Z]/g, ''))
+    }
+  }
 
   if (/^AVE [A-D]$/.test(standardized)) keys.add(standardized.slice(4))
   if (/^[A-D] AVE$/.test(standardized)) keys.add(standardized[0])
   if (standardized === 'SIXTH AVE' || standardized === '6TH AVE') keys.add('AVEOFTHEAMERICAS')
   if (standardized === 'AVE OF THE AMERICAS') keys.add('6THAVE')
   if (standardized === 'FDR' || standardized === 'FDR DR') keys.add('FRANKLINDROOSEVELTDR')
+  if (/^ED KOCH QUEENSBORO (?:BRIDGE|BRG)$/.test(standardized)) {
+    keys.add('QUEENSBORO')
+    keys.add('QUEENSBOROBRG')
+    keys.add('QUEENSBOROBRIDGE')
+  }
 
   return [...keys].filter(Boolean)
 }
