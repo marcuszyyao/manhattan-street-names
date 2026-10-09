@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { streetExactKeys, streetInputKeys } from './normalization.js'
+import { standardizeStreetText, streetExactKeys, streetInputKeys, stripStreetSuffix } from './normalization.js'
 
 function cloneFeature(feature, latest = false, index = 0) {
   return {
@@ -41,7 +41,8 @@ export function useStreetGame() {
   })
 
   async function load() {
-    const response = await fetch(`${import.meta.env.BASE_URL}data-manhattan-all.json`)
+    const baseUrl = import.meta.env?.BASE_URL ?? './'
+    const response = await fetch(`${baseUrl}data-manhattan-all.json`)
     if (!response.ok) throw new Error(`Unable to load Manhattan street data (${response.status})`)
     const data = await response.json()
     streets.value = data.streets ?? []
@@ -90,27 +91,23 @@ export function useStreetGame() {
   }
 
   function submitName(input) {
-    if (!String(input ?? '').trim()) return { valid: false, added: false }
-    const exactMatches = new Set()
-    for (const inputKey of streetExactKeys(input)) {
-      for (const streetKey of exactIndex.get(inputKey) ?? []) exactMatches.add(streetKey)
-    }
-    if (exactMatches.size) return { valid: true, added: addKeys([...exactMatches], true) }
+    const standardizedInput = standardizeStreetText(input)
+    if (!standardizedInput) return { valid: false, added: false }
 
-    const fallbackMatches = new Set()
-    for (const inputKey of streetInputKeys(input)) {
-      const canonical = exactIndex.get(inputKey)
-      if (canonical?.size) {
-        for (const streetKey of canonical) fallbackMatches.add(streetKey)
-        continue
-      }
-      const fallback = fallbackIndex.get(inputKey)
-      if (fallback?.size === 1) {
-        for (const streetKey of fallback) fallbackMatches.add(streetKey)
-      }
+    const matches = new Set()
+    for (const inputKey of streetExactKeys(standardizedInput)) {
+      for (const streetKey of exactIndex.get(inputKey) ?? []) matches.add(streetKey)
     }
-    if (!fallbackMatches.size) return { valid: false, added: false }
-    return { valid: true, added: addKeys([...fallbackMatches], true) }
+    if (matches.size) return { valid: true, added: addKeys([...matches], true) }
+
+    const hasExplicitEnding = stripStreetSuffix(standardizedInput) !== standardizedInput
+    if (hasExplicitEnding) return { valid: false, added: false }
+
+    for (const inputKey of streetInputKeys(standardizedInput)) {
+      for (const streetKey of fallbackIndex.get(inputKey) ?? []) matches.add(streetKey)
+    }
+    if (!matches.size) return { valid: false, added: false }
+    return { valid: true, added: addKeys([...matches], true) }
   }
 
   function restore(keys = []) {

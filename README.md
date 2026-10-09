@@ -30,7 +30,7 @@ The checked-in game data was generated on 2026-10-09 from NYC Open Data:
 - [Parks Properties](https://data.cityofnewyork.us/d/enfh-gkve) — park polygons
 - [Borough Boundaries](https://data.cityofnewyork.us/d/gthc-hcne) — Manhattan land outline
 
-Run `npm run data:refresh` to rebuild the local GeoJSON and game data from the current datasets. The resulting game contains 1,120 named street groups covering approximately 737 miles. Street suffixes, cardinal directions, written ordinals, Avenue of the Americas, FDR Drive aliases, and East/West Houston Street are normalized for play. Exact names win over suffixless aliases; ambiguous shortened names are rejected so one guess cannot reveal unrelated streets.
+Run `npm run data:refresh` to rebuild the local GeoJSON and game data from the current datasets. The resulting game contains 1,120 named street groups covering approximately 737 miles. Street suffixes, cardinal directions, written ordinals, Avenue of the Americas, FDR Drive aliases, and East/West Houston Street are normalized for play. A guess with an explicit ending stays specific (`First Avenue` reveals only `1ST AVE`), while omitting the ending (`First`) reveals every matching street type.
 
 NYC data is provided under the [NYC Open Data Terms of Use](https://opendata.cityofnewyork.us/overview/#termsofuse).
 
