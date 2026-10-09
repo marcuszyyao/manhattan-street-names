@@ -47,6 +47,7 @@ function readGames() {
       name: 'My Manhattan Streets',
       guessed: [],
       percent: 0,
+      gaveUp: false,
       createdAt: new Date().toISOString(),
     }
     games.value.unshift(initial)
@@ -72,6 +73,7 @@ function saveCurrent() {
     ...games.value[index],
     guessed: [...game.guessedKeys.value],
     percent: game.percentMilesGuessed.value,
+    gaveUp: game.gaveUp.value,
     updatedAt: new Date().toISOString(),
   }
   writeGames()
@@ -96,12 +98,22 @@ function resetGame() {
   streetMap.value?.recenter()
 }
 
+function giveUpGame() {
+  if (!game.giveUp()) return
+  query.value = ''
+  streetInput.value?.hideKeyboard()
+  menuShown.value = false
+  saveCurrent()
+  nextTick(() => streetMap.value?.recenter())
+}
+
 function newGame(name) {
   const next = {
     id: crypto.randomUUID(),
     name,
     guessed: [],
     percent: 0,
+    gaveUp: false,
     createdAt: new Date().toISOString(),
   }
   games.value.unshift(next)
@@ -118,7 +130,7 @@ function loadSavedGame(id) {
   if (!selected) return
   persistenceReady.value = false
   currentGameId.value = id
-  game.restore(selected.guessed ?? [])
+  game.restore(selected.guessed ?? [], selected.gaveUp ?? false)
   query.value = ''
   writeGames()
   persistenceReady.value = true
@@ -183,6 +195,7 @@ function scheduleViewportSync() {
 }
 
 watch(game.guessedKeys, saveCurrent, { deep: true })
+watch(game.gaveUp, saveCurrent)
 watch(game.percentMilesGuessed, (value, previous) => {
   if (value >= 100 && previous < 100) startCelebration()
 })
@@ -197,7 +210,7 @@ onMounted(async () => {
   readGames()
   try {
     await game.load()
-    game.restore(currentGame.value?.guessed ?? [])
+    game.restore(currentGame.value?.guessed ?? [], currentGame.value?.gaveUp ?? false)
     persistenceReady.value = true
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'The Manhattan street data could not be loaded.'
@@ -224,18 +237,21 @@ onBeforeUnmount(() => {
   <div
     class="game-shell"
     :class="{
-      streetsfound: !game.isEmpty.value,
+      streetsfound: game.hasResults.value,
       labelshidden: !labelsShown,
       customsort: game.sortKey.value !== 'found',
       waiting: !ready,
       loading,
       complete: game.percentMilesGuessed.value >= 100,
+      'gave-up': game.gaveUp.value,
     }"
   >
     <StreetMap
       ref="streetMap"
       :streets="game.streets.value"
       :guessed-streets="game.guessedStreets.value"
+      :missed-streets="game.missedStreets.value"
+      :gave-up="game.gaveUp.value"
       :labels-shown="labelsShown"
       @load="mapLoaded = true"
       @error="mapError = $event"
@@ -247,14 +263,14 @@ onBeforeUnmount(() => {
       <button type="button" @click="retryLoad">Try Again</button>
     </div>
 
-    <div v-if="ready" id="instructions">
+    <div v-if="ready && !game.hasResults.value" id="instructions">
       Type the name of any Manhattan street
       <span class="mobile-only">in the input below </span>
       and press "return."
     </div>
 
     <StreetInput
-      v-if="ready && game.percentMilesGuessed.value < 100"
+      v-if="ready && !game.isOver.value"
       ref="streetInput"
       v-model="query"
       placeholder="Enter a Street"
@@ -263,20 +279,34 @@ onBeforeUnmount(() => {
     />
 
     <div v-if="ready && game.percentMilesGuessed.value >= 100" class="complete-message">You Did It!</div>
+    <div v-else-if="ready && game.gaveUp.value" class="gave-up-message">All Streets Revealed</div>
 
-    <div v-if="ready" class="small-screen-percent" @click="showResults">
+    <div
+      v-if="ready"
+      class="small-screen-percent"
+      role="button"
+      :tabindex="game.hasResults.value ? 0 : -1"
+      aria-label="Open street results"
+      @click="showResults"
+      @keydown.enter="showResults"
+      @keydown.space.prevent="showResults"
+    >
       <span class="small-screen-percent-number">{{ game.percentMilesGuessed.value }}%</span>
       <span v-if="game.percentMilesGuessed.value >= 100" class="small-screen-complete-message">– YOU DID IT!</span>
+      <span v-else-if="game.gaveUp.value" class="small-screen-complete-message">– GAVE UP</span>
       <br />
-      <span class="small-screen-percent-title">mi. of street named</span>
+      <span class="small-screen-percent-title">{{ game.gaveUp.value ? 'final score · tap for streets' : 'mi. of street named' }}</span>
     </div>
 
     <ResultsPanel
       v-if="ready"
       ref="resultsPanel"
       :percent="game.percentMilesGuessed.value"
-      :streets="game.guessedStreetsSorted.value"
+      :streets="game.gaveUp.value ? game.revealedStreetsSorted.value : game.guessedStreetsSorted.value"
       :sort-key="game.sortKey.value"
+      :gave-up="game.gaveUp.value"
+      :guessed-count="game.guessedStreets.value.length"
+      :missed-count="game.missedStreets.value.length"
       @sort="game.sortKey.value = $event"
       @hover-street="streetMap?.hoverStreet($event)"
       @center-street="centerStreet"
@@ -299,9 +329,13 @@ onBeforeUnmount(() => {
       :labels-shown="labelsShown"
       :games="games"
       :current-game-id="currentGameId"
+      :percent="game.percentMilesGuessed.value"
+      :can-give-up="ready && !game.isOver.value"
+      :gave-up="game.gaveUp.value"
       @close="menuShown = false"
       @toggle-labels="labelsShown = !labelsShown"
       @reset="resetGame"
+      @give-up="giveUpGame"
       @new-game="newGame"
       @load-game="loadSavedGame"
     />

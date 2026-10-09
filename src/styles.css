@@ -1727,6 +1727,10 @@ body {
   font-weight: 700;
   display: inline-block;
 }
+.small-screen-percent:focus-visible {
+  outline: 3px solid #eab600;
+  outline-offset: -3px;
+}
 .small-screen-complete-message {
   letter-spaing: -1px;
   font-size: 18px;
@@ -2222,5 +2226,206 @@ body {
     padding-left: 78px;
     font-size: 36px;
     line-height: 64px;
+  }
+}
+
+/* Give-up / reveal state */
+button.street-entry {
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  height: 40px;
+  font: inherit;
+  line-height: 40px;
+  appearance: none;
+}
+button.street-entry:focus-visible {
+  color: #222;
+  background: #eab600;
+  outline: 3px solid #fff;
+  outline-offset: -3px;
+}
+
+.gave-up-message {
+  z-index: 700;
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  box-sizing: border-box;
+  background: #35346ce8;
+  border: 2px solid #eab600;
+  border-radius: 8px;
+  height: 62px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 58px;
+  position: absolute;
+  top: 60px;
+  right: auto;
+  left: 160px;
+  width: min(420px, calc(100% - 520px));
+  box-shadow: 0 4px 20px #0006;
+}
+
+.reveal-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 18px 0 14px;
+  display: grid;
+}
+.reveal-filters button {
+  color: #fff;
+  cursor: pointer;
+  background: #ffffff14;
+  border: 1px solid #ffffff40;
+  border-radius: 5px;
+  min-width: 0;
+  padding: 9px 4px 8px;
+  font: 700 12px Overpass, sans-serif;
+}
+.reveal-filters button span {
+  opacity: 0.7;
+  margin-left: 2px;
+  font-family: Overpass Mono, monospace;
+}
+.reveal-filters button:hover,
+.reveal-filters button:focus-visible,
+.reveal-filters button.selected {
+  color: #222;
+  background: #eab600;
+  border-color: #eab600;
+  outline: none;
+}
+.reveal-filters button.selected span {
+  opacity: 1;
+}
+
+ul.revealed-streets,
+ul.revealed-streets li {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+ul.revealed-streets {
+  padding-bottom: 24px;
+}
+ul.revealed-streets li {
+  height: 40px;
+}
+.street-entry.revealed-entry {
+  box-sizing: border-box;
+  grid-template-columns: 18px minmax(0, 1fr) 48px auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0 8px;
+  display: grid;
+}
+.revealed-entry.street-found {
+  background: #0f9cc91f;
+  border-left: 4px solid #0f9cc9;
+}
+.revealed-entry.street-missed {
+  color: #d2d1ea;
+  border-left: 4px solid #8584ad;
+}
+.revealed-entry .street-status-mark {
+  color: #8584ad;
+  text-align: center;
+  font-weight: 900;
+}
+.revealed-entry.street-found .street-status-mark {
+  color: #39cfdd;
+}
+.revealed-entry .street-name {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+  overflow: hidden;
+}
+.revealed-entry .street-status {
+  opacity: 0.65;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.revealed-entry .percent-added {
+  white-space: nowrap;
+  font-family: Overpass Mono, monospace;
+  font-size: 12px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .street-entry.revealed-entry:hover {
+    color: #222;
+    background: #eab600;
+    border-left-color: #eab600;
+  }
+}
+.street-entry.revealed-entry:focus-visible {
+  color: #222;
+  background: #eab600;
+  border-left-color: #eab600;
+}
+
+.give-up-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+  display: flex;
+}
+.give-up-actions button {
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: 3px;
+  min-height: 48px;
+  padding: 0 20px;
+  font: 800 15px Overpass, sans-serif;
+}
+.give-up-confirm {
+  color: #222;
+  background: #eab600;
+  border: 2px solid #eab600;
+}
+.give-up-confirm:hover,
+.give-up-confirm:focus-visible {
+  background: #fbcf35;
+  border-color: #fbcf35;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.give-up-cancel {
+  color: #fff;
+  background: transparent;
+  border: 2px solid #ffffff80;
+}
+.give-up-cancel:hover,
+.give-up-cancel:focus-visible {
+  background: #1a1946;
+  border-color: #fff;
+  outline: none;
+}
+
+@media (max-width: 760px), (max-height: 580px) and (pointer: coarse) {
+  .gave-up-message {
+    display: none;
+  }
+}
+@media (max-width: 580px), (max-height: 580px) and (pointer: coarse) {
+  .gave-up .small-screen-percent {
+    box-shadow:
+      inset 0 -2px #eab600,
+      0 4px 20px #0005;
+  }
+  .street-entry.revealed-entry {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+  }
+  .revealed-entry .street-status {
+    display: none;
   }
 }

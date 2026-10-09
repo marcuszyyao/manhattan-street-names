@@ -6,8 +6,11 @@ const props = defineProps({
   labelsShown: { type: Boolean, default: true },
   games: { type: Array, default: () => [] },
   currentGameId: { type: String, default: '' },
+  percent: { type: Number, default: 0 },
+  canGiveUp: { type: Boolean, default: false },
+  gaveUp: { type: Boolean, default: false },
 })
-const emit = defineEmits(['close', 'toggleLabels', 'reset', 'newGame', 'loadGame'])
+const emit = defineEmits(['close', 'toggleLabels', 'reset', 'giveUp', 'newGame', 'loadGame'])
 const page = ref('')
 const gameName = ref('')
 
@@ -28,6 +31,11 @@ function loadGame(id) {
   emit('loadGame', id)
   page.value = ''
 }
+
+function confirmGiveUp() {
+  emit('giveUp')
+  page.value = ''
+}
 </script>
 
 <template>
@@ -46,14 +54,15 @@ function loadGame(id) {
         <div class="logo-text" data-scope="overlay">Hello!</div>
         <h3 data-scope="overlay">Game Options</h3>
         <ul class="menu-options" data-scope="overlay">
-          <li data-scope="overlay" @click="emit('toggleLabels'); close()">{{ labelsShown ? 'Hide' : 'Show' }} Street Names</li>
-          <li data-scope="overlay" @click="emit('reset')">Reset</li>
-          <li data-scope="overlay" @click="page = 'new'">New Game</li>
-          <li data-scope="overlay" @click="page = 'load'">Load Game</li>
+          <li data-scope="overlay" role="button" tabindex="0" @click="emit('toggleLabels'); close()" @keydown.enter="emit('toggleLabels'); close()" @keydown.space.prevent="emit('toggleLabels'); close()">{{ labelsShown ? 'Hide' : 'Show' }} {{ gaveUp ? 'Found ' : '' }}Street Names</li>
+          <li data-scope="overlay" role="button" tabindex="0" @click="emit('reset')" @keydown.enter="emit('reset')" @keydown.space.prevent="emit('reset')">Reset</li>
+          <li v-if="canGiveUp" data-scope="overlay" role="button" tabindex="0" @click="page = 'give-up'" @keydown.enter="page = 'give-up'" @keydown.space.prevent="page = 'give-up'">Give Up</li>
+          <li data-scope="overlay" role="button" tabindex="0" @click="page = 'new'" @keydown.enter="page = 'new'" @keydown.space.prevent="page = 'new'">New Game</li>
+          <li data-scope="overlay" role="button" tabindex="0" @click="page = 'load'" @keydown.enter="page = 'load'" @keydown.space.prevent="page = 'load'">Load Game</li>
         </ul>
         <div class="divider" data-scope="overlay" />
         <ul class="menu-options" data-scope="overlay">
-          <li data-scope="overlay" @click="page = 'about'">About</li>
+          <li data-scope="overlay" role="button" tabindex="0" @click="page = 'about'" @keydown.enter="page = 'about'" @keydown.space.prevent="page = 'about'">About</li>
         </ul>
         <a href="#" class="icon-button close" data-scope="overlay" aria-label="Close menu" @click.prevent="close" />
       </div>
@@ -103,6 +112,19 @@ function loadGame(id) {
           </li>
         </ul>
         <p v-if="!games.length">No saved games yet.</p>
+        <a href="#" class="icon-button back" data-scope="overlay" aria-label="Back" @click.prevent="page = ''" />
+      </div>
+
+      <div class="menu-page give-up-page" data-scope="overlay" :class="{ open: page === 'give-up' }">
+        <h2 data-scope="overlay">Give Up?</h2>
+        <p>
+          Your final score will stay at <strong>{{ percent }}%</strong>. We’ll reveal every mapped street so you can explore what you missed.
+        </p>
+        <p>You won’t be able to add more streets to this game, but you can reset it or start a new one.</p>
+        <div class="give-up-actions">
+          <button type="button" class="give-up-confirm" @click="confirmGiveUp">Give Up &amp; Reveal</button>
+          <button type="button" class="give-up-cancel" @click="page = ''">Keep Playing</button>
+        </div>
         <a href="#" class="icon-button back" data-scope="overlay" aria-label="Back" @click.prevent="page = ''" />
       </div>
     </div>

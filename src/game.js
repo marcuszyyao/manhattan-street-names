@@ -6,8 +6,20 @@ function cloneFeature(feature, latest = false, index = 0) {
     ...feature,
     properties: {
       ...feature.properties,
+      guessed: true,
       index,
       ...(latest ? { latest: true } : {}),
+    },
+  }
+}
+
+function cloneMissedFeature(feature, index = 0) {
+  return {
+    ...feature,
+    properties: {
+      ...feature.properties,
+      guessed: false,
+      index,
     },
   }
 }
@@ -19,6 +31,7 @@ export function useStreetGame() {
   const guessedKeys = ref([])
   const guessedStreets = ref([])
   const guessedMiles = ref(0)
+  const gaveUp = ref(false)
   const sortKey = ref('found')
   const exactIndex = new Map()
   const fallbackIndex = new Map()
@@ -29,6 +42,15 @@ export function useStreetGame() {
     return Math.min(100, Math.round((guessedMiles.value / totalLength.value) * 10000) / 100)
   })
   const isEmpty = computed(() => guessedKeys.value.length === 0)
+  const isOver = computed(() => gaveUp.value || percentMilesGuessed.value >= 100)
+  const hasResults = computed(() => !isEmpty.value || gaveUp.value)
+  const missedStreets = computed(() => {
+    if (!gaveUp.value) return []
+    const guessed = new Set(guessedKeys.value)
+    return streets.value
+      .filter((street) => !guessed.has(street.properties.clean))
+      .map((street, index) => cloneMissedFeature(street, index))
+  })
   const guessedStreetsSorted = computed(() => {
     const copy = [...guessedStreets.value]
     if (sortKey.value === 'alphabetical') {
@@ -38,6 +60,20 @@ export function useStreetGame() {
       return copy.sort((a, b) => a.properties.percent - b.properties.percent)
     }
     return copy.sort((a, b) => a.properties.index - b.properties.index)
+  })
+  const revealedStreetsSorted = computed(() => {
+    const copy = [...guessedStreets.value, ...missedStreets.value]
+    if (sortKey.value === 'alphabetical') {
+      return copy.sort((a, b) => a.properties.display.localeCompare(b.properties.display))
+    }
+    if (sortKey.value === 'length') {
+      return copy.sort((a, b) => Number(b.properties.miles) - Number(a.properties.miles))
+    }
+    return copy.sort((a, b) => {
+      if (a.properties.guessed !== b.properties.guessed) return a.properties.guessed ? -1 : 1
+      if (a.properties.guessed) return b.properties.index - a.properties.index
+      return a.properties.display.localeCompare(b.properties.display)
+    })
   })
 
   async function load() {
@@ -91,6 +127,7 @@ export function useStreetGame() {
   }
 
   function submitName(input) {
+    if (gaveUp.value) return { valid: false, added: false }
     const standardizedInput = standardizeStreetText(input)
     if (!standardizedInput) return { valid: false, added: false }
 
@@ -110,15 +147,24 @@ export function useStreetGame() {
     return { valid: true, added: addKeys([...matches], true) }
   }
 
-  function restore(keys = []) {
+  function giveUp() {
+    if (gaveUp.value || percentMilesGuessed.value >= 100) return false
+    gaveUp.value = true
+    sortKey.value = 'found'
+    return true
+  }
+
+  function restore(keys = [], wasGivenUp = false) {
     reset(false)
     addKeys(keys, false)
+    gaveUp.value = Boolean(wasGivenUp) && percentMilesGuessed.value < 100
   }
 
   function reset(clear = true) {
     guessedKeys.value = []
     guessedStreets.value = []
     guessedMiles.value = 0
+    gaveUp.value = false
     if (clear) sortKey.value = 'found'
   }
 
@@ -129,12 +175,18 @@ export function useStreetGame() {
     guessedKeys,
     guessedStreets,
     guessedStreetsSorted,
+    revealedStreetsSorted,
+    missedStreets,
     guessedMiles,
     percentMilesGuessed,
+    gaveUp,
     isEmpty,
+    isOver,
+    hasResults,
     sortKey,
     load,
     submitName,
+    giveUp,
     restore,
     reset,
   }
