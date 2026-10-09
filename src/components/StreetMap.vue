@@ -15,6 +15,8 @@ let map
 let hoveredId = -1
 let popup
 let mapReady = false
+let resizeObserver
+let resizeFrame
 
 const featureCollection = (features) => ({ type: 'FeatureCollection', features: JSON.parse(JSON.stringify(features ?? [])) })
 const asset = (name) => `${import.meta.env.BASE_URL}${name}`
@@ -133,14 +135,26 @@ function boundsFor(feature) {
   return bounds
 }
 
+function usesPhoneLayout() {
+  const container = map?.getContainer()
+  const width = container?.clientWidth ?? window.innerWidth
+  const height = container?.clientHeight ?? window.innerHeight
+  return width <= 580 || (height <= 580 && window.matchMedia('(pointer: coarse)').matches)
+}
+
 function centerStreet(id) {
   const feature = props.guessedStreets.find((street) => street.id === id)
   if (!feature || !map) return
-  const mobile = map.getContainer().clientWidth <= 580
+  const mobile = usesPhoneLayout()
+  const width = map.getContainer().clientWidth
+  const height = map.getContainer().clientHeight
+  const horizontalPadding = Math.max(20, Math.min(40, Math.floor(width * 0.1)))
+  const topPadding = Math.max(64, Math.min(140, Math.floor(height * 0.18)))
+  const bottomPadding = Math.max(72, Math.min(120, Math.floor(height * 0.15)))
   map.fitBounds(boundsFor(feature), {
     maxZoom: Math.max(map.getZoom(), 15),
     padding: mobile
-      ? { top: 140, left: 40, bottom: 120, right: 40 }
+      ? { top: topPadding, left: horizontalPadding, bottom: bottomPadding, right: horizontalPadding }
       : { top: 120, left: 270, bottom: 120, right: 270 },
   })
   hoverStreet(id)
@@ -152,6 +166,11 @@ function recenter() {
 
 function resize() {
   map?.resize()
+}
+
+function scheduleResize() {
+  window.cancelAnimationFrame(resizeFrame)
+  resizeFrame = window.requestAnimationFrame(resize)
 }
 
 onMounted(() => {
@@ -168,19 +187,30 @@ onMounted(() => {
     attributionControl: false,
   })
   map.addControl(new maplibregl.AttributionControl({
-    compact: false,
+    compact: usesPhoneLayout(),
     customAttribution: '<a href="https://data.cityofnewyork.us/d/inkn-q76z" target="_blank" rel="noopener">NYC streets</a> · <a href="https://data.cityofnewyork.us/d/enfh-gkve" target="_blank" rel="noopener">parks</a> · <a href="https://data.cityofnewyork.us/d/gthc-hcne" target="_blank" rel="noopener">boundary</a>',
   }), 'bottom-right')
-  map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }))
+  map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), 'top-right')
   map.on('error', (event) => {
     const message = event?.error?.message || 'The Manhattan map could not be loaded.'
     if (!mapReady) emit('error', message)
     else console.error('MapLibre runtime error:', event?.error ?? event)
   })
   map.on('load', initializeLayers)
+
+  if ('ResizeObserver' in window) {
+    resizeObserver = new ResizeObserver(scheduleResize)
+    resizeObserver.observe(mapContainer.value)
+  }
+  window.addEventListener('orientationchange', scheduleResize)
 })
 
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => {
+  window.cancelAnimationFrame(resizeFrame)
+  window.removeEventListener('orientationchange', scheduleResize)
+  resizeObserver?.disconnect()
+  map?.remove()
+})
 watch(() => props.streets, (value) => map?.getSource('all-streets')?.setData(featureCollection(value)), { deep: true })
 watch(() => props.guessedStreets, (value) => map?.getSource('guessed-streets')?.setData(featureCollection(value)), { deep: true })
 watch(() => props.labelsShown, (shown) => {

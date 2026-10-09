@@ -66,21 +66,21 @@ defineExpose({ startShaking, stopShaking, showKeyboard, hideKeyboard })
         <span v-if="modelValue" class="cursor" />
       </div>
     </div>
+    <form class="fake-form" action="./" novalidate @submit.prevent="submit">
+      <input
+        id="input-field"
+        ref="field"
+        type="text"
+        aria-label="Enter a Manhattan street"
+        :value="modelValue"
+        :disabled="paused"
+        enterkeyhint="enter"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        @input="onMobileInput"
+      />
+    </form>
   </div>
-  <form class="fake-form" action="./" novalidate @submit.prevent="submit">
-    <input
-      id="input-field"
-      ref="field"
-      type="text"
-      aria-label="Enter a Manhattan street"
-      :value="modelValue"
-      :disabled="paused"
-      enterkeyhint="enter"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-      @input="onMobileInput"
-    />
-  </form>
 </template>

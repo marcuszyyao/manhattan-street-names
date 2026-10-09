@@ -25,6 +25,7 @@ const currentGameId = ref('')
 const persistenceReady = ref(false)
 let confettiTimer
 let confettiStopTimer
+let viewportFrame
 
 const fatalError = computed(() => loadError.value || mapError.value)
 const ready = computed(() => mapLoaded.value && game.loaded.value && !loading.value && !fatalError.value)
@@ -166,6 +167,21 @@ function retryLoad() {
   window.location.reload()
 }
 
+function syncVisualViewport() {
+  const viewport = window.visualViewport
+  const isPageZoomed = (viewport?.scale ?? 1) > 1.01
+  const height = !isPageZoomed && viewport ? viewport.height : window.innerHeight
+  const offsetTop = !isPageZoomed && viewport ? viewport.offsetTop : 0
+  document.documentElement.style.setProperty('--game-viewport-height', `${Math.round(height)}px`)
+  document.documentElement.style.setProperty('--game-viewport-top', `${Math.round(offsetTop)}px`)
+  streetMap.value?.resize()
+}
+
+function scheduleViewportSync() {
+  window.cancelAnimationFrame(viewportFrame)
+  viewportFrame = window.requestAnimationFrame(syncVisualViewport)
+}
+
 watch(game.guessedKeys, saveCurrent, { deep: true })
 watch(game.percentMilesGuessed, (value, previous) => {
   if (value >= 100 && previous < 100) startCelebration()
@@ -173,6 +189,11 @@ watch(game.percentMilesGuessed, (value, previous) => {
 watch(menuShown, (shown) => { if (shown) streetInput.value?.hideKeyboard() })
 
 onMounted(async () => {
+  syncVisualViewport()
+  window.addEventListener('resize', scheduleViewportSync)
+  window.addEventListener('orientationchange', scheduleViewportSync)
+  window.visualViewport?.addEventListener('resize', scheduleViewportSync)
+  window.visualViewport?.addEventListener('scroll', scheduleViewportSync)
   readGames()
   try {
     await game.load()
@@ -187,7 +208,16 @@ onMounted(async () => {
   }
 })
 
-onBeforeUnmount(stopCelebration)
+onBeforeUnmount(() => {
+  stopCelebration()
+  window.cancelAnimationFrame(viewportFrame)
+  window.removeEventListener('resize', scheduleViewportSync)
+  window.removeEventListener('orientationchange', scheduleViewportSync)
+  window.visualViewport?.removeEventListener('resize', scheduleViewportSync)
+  window.visualViewport?.removeEventListener('scroll', scheduleViewportSync)
+  document.documentElement.style.removeProperty('--game-viewport-height')
+  document.documentElement.style.removeProperty('--game-viewport-top')
+})
 </script>
 
 <template>
