@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="NY street sign">
+  <circle cx="64" cy="64" r="64" fill="#0091bf"/>
+  <circle cx="64" cy="64" r="47" fill="#eab600"/>
+  <path d="M8 98c34-19 71-29 120-26-4 32-31 56-64 56-23 0-44-12-56-30Z" fill="#75bba2"/>
+  <path d="M17 107c33-18 65-29 109-28-7 28-32 49-62 49-19 0-36-8-47-21Z" fill="#005f3d"/>
+  <path d="M58 37h12v91H56l2-91Z" fill="#111"/>
+  <rect x="18" y="46" width="92" height="39" rx="5" fill="#fff" stroke="#111" stroke-width="6"/>
+  <rect x="21" y="49" width="86" height="33" rx="2" fill="none" stroke="#fff" stroke-width="2"/>
+  <text x="64" y="75" text-anchor="middle" font-family="Overpass Mono, monospace" font-size="27" font-weight="700" fill="#111">NY</text>
+</svg>
