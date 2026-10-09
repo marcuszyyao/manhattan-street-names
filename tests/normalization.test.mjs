@@ -29,6 +29,14 @@ test('generated game data has valid scoring and core Manhattan streets', async (
   assert.ok(data.streets.some((street) => street.properties.display === 'BROADWAY'))
   assert.ok(data.streets.some((street) => street.properties.display === '42ND ST'))
   assert.ok(data.streets.some((street) => street.properties.display === '5TH AVE'))
+  const houstonStreets = data.streets.filter((street) => street.properties.display === 'HOUSTON ST')
+  assert.equal(houstonStreets.length, 1)
+  assert.deepEqual(houstonStreets[0].properties.fullNames, ['E  HOUSTON ST', 'W  HOUSTON ST'])
+  assert.ok(houstonStreets[0].properties.exactAliases.includes('HOUSTONST'))
+  assert.ok(houstonStreets[0].properties.exactAliases.includes('EHOUSTONST'))
+  assert.ok(houstonStreets[0].properties.exactAliases.includes('WHOUSTONST'))
+  assert.ok(streetExactKeys('Houston Street').some((key) => houstonStreets[0].properties.exactAliases.includes(key)))
+  assert.ok(houstonStreets[0].properties.miles > 3.1)
   assert.deepEqual(
     data.streets.filter((street) => street.properties.exactAliases.includes(streetExactKeys('Broadway')[0])).map((street) => street.properties.display),
     ['BROADWAY'],

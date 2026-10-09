@@ -2,7 +2,9 @@
 
 A Manhattan edition of [Name SF Streets](https://carvin.github.io/sf-street-names/). Type street names from memory to reveal them on the map and track the percentage of Manhattan’s mapped street mileage you have named.
 
-The interaction model, color palette, and visual layout intentionally mirror Chris Arvin’s original game. This repository is kept private because the original site does not publish a reuse license.
+[Play Name Manhattan Streets](https://marcuszyyao.github.io/manhattan-street-names/)
+
+The interaction model, color palette, and visual layout intentionally mirror Chris Arvin’s original game. Attribution to the original creator is retained below.
 
 ## Run locally
 
@@ -28,7 +30,7 @@ The checked-in game data was generated on 2026-10-09 from NYC Open Data:
 - [Parks Properties](https://data.cityofnewyork.us/d/enfh-gkve) — park polygons
 - [Borough Boundaries](https://data.cityofnewyork.us/d/gthc-hcne) — Manhattan land outline
 
-Run `npm run data:refresh` to rebuild the local GeoJSON and game data from the current datasets. The resulting game contains 1,121 named street groups covering approximately 737 miles. Street suffixes, cardinal directions, written ordinals, Avenue of the Americas, and FDR Drive aliases are normalized for play. Exact names win over suffixless aliases; ambiguous shortened names are rejected so one guess cannot reveal unrelated streets.
+Run `npm run data:refresh` to rebuild the local GeoJSON and game data from the current datasets. The resulting game contains 1,120 named street groups covering approximately 737 miles. Street suffixes, cardinal directions, written ordinals, Avenue of the Americas, FDR Drive aliases, and East/West Houston Street are normalized for play. Exact names win over suffixless aliases; ambiguous shortened names are rejected so one guess cannot reveal unrelated streets.
 
 NYC data is provided under the [NYC Open Data Terms of Use](https://opendata.cityofnewyork.us/overview/#termsofuse).
 

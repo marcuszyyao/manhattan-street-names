@@ -37,6 +37,7 @@ function canonicalDisplay(rawName) {
 
   const numberedStreet = value.match(/^[EW]\s+(\d{1,3})\s+ST$/)
   if (numberedStreet) value = `${numberedStreet[1]} ST`
+  if (/^[EW] HOUSTON (?:ST|STREET)$/.test(value)) value = 'HOUSTON ST'
   if (value === 'AVE OF THE AMERICAS') value = '6 AVE'
   if (value === 'FRANKLIN D ROOSEVELT DR') value = 'FDR DR'
 

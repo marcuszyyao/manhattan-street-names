@@ -28,6 +28,7 @@ let confettiStopTimer
 
 const fatalError = computed(() => loadError.value || mapError.value)
 const ready = computed(() => mapLoaded.value && game.loaded.value && !loading.value && !fatalError.value)
+const loadingStatus = computed(() => `Loading Manhattan map (map: ${mapLoaded.value ? 'ready' : 'waiting'}, data: ${game.loaded.value ? 'ready' : 'waiting'})`)
 const currentGame = computed(() => games.value.find((item) => item.id === currentGameId.value))
 
 function readGames() {
@@ -259,7 +260,7 @@ onBeforeUnmount(stopCelebration)
       </div>
     </div>
 
-    <div class="lds-ring-wrap" :class="{ enabled: !ready && !fatalError }">
+    <div class="lds-ring-wrap" :class="{ enabled: !ready && !fatalError }" role="status" :aria-label="loadingStatus" :aria-hidden="ready || !!fatalError">
       <div class="lds-ring"><div /><div /><div /><div /></div>
     </div>
 

@@ -1,5 +1,6 @@
 <script setup>
 import * as maplibregl from 'maplibre-gl'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const MANHATTAN_BOUNDS = [-74.0479, 40.6793, -73.9062, 40.8822]
@@ -13,6 +14,7 @@ const mapContainer = ref(null)
 let map
 let hoveredId = -1
 let popup
+let mapReady = false
 
 const featureCollection = (features) => ({ type: 'FeatureCollection', features: JSON.parse(JSON.stringify(features ?? [])) })
 const asset = (name) => `${import.meta.env.BASE_URL}${name}`
@@ -79,7 +81,16 @@ function addLayers() {
 
   map.on('mousemove', 'found-streets', onStreetMove)
   map.on('mouseleave', 'found-streets', clearMapHover)
-  map.once('idle', () => emit('load'))
+}
+
+function initializeLayers() {
+  try {
+    addLayers()
+    mapReady = true
+    emit('load')
+  } catch (error) {
+    emit('error', error instanceof Error ? error.message : 'The Manhattan map could not be initialized.')
+  }
 }
 
 function onStreetMove(event) {
@@ -145,6 +156,7 @@ function resize() {
 
 onMounted(() => {
   const pageBase = window.location.href.replace(/[^/]*$/, '')
+  maplibregl.setWorkerUrl(maplibreWorkerUrl)
   map = new maplibregl.Map({
     container: mapContainer.value,
     style: { version: 8, sources: {}, layers: [], glyphs: `${pageBase}fonts/{fontstack}/{range}.pbf` },
@@ -161,9 +173,11 @@ onMounted(() => {
   }), 'bottom-right')
   map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }))
   map.on('error', (event) => {
-    if (!map.loaded()) emit('error', event?.error?.message || 'The Manhattan map could not be loaded.')
+    const message = event?.error?.message || 'The Manhattan map could not be loaded.'
+    if (!mapReady) emit('error', message)
+    else console.error('MapLibre runtime error:', event?.error ?? event)
   })
-  map.on('load', addLayers)
+  map.on('load', initializeLayers)
 })
 
 onBeforeUnmount(() => map?.remove())
