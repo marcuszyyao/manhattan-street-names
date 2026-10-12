@@ -23,6 +23,7 @@ const menuShown = ref(false)
 const games = ref([])
 const currentGameId = ref('')
 const persistenceReady = ref(false)
+const modeAnnouncement = ref('')
 let confettiTimer
 let confettiStopTimer
 let viewportFrame
@@ -48,6 +49,7 @@ function readGames() {
       guessed: [],
       percent: 0,
       gaveUp: false,
+      skipNumbered: false,
       createdAt: new Date().toISOString(),
     }
     games.value.unshift(initial)
@@ -74,6 +76,7 @@ function saveCurrent() {
     guessed: [...game.guessedKeys.value],
     percent: game.percentMilesGuessed.value,
     gaveUp: game.gaveUp.value,
+    skipNumbered: game.skipNumberedStreets.value,
     updatedAt: new Date().toISOString(),
   }
   writeGames()
@@ -107,6 +110,17 @@ function giveUpGame() {
   nextTick(() => streetMap.value?.recenter())
 }
 
+function toggleNumberedStreets(event) {
+  const enabled = event.target.checked
+  if (!game.setSkipNumberedStreets(enabled)) return
+  query.value = ''
+  streetInput.value?.stopShaking()
+  streetMap.value?.clearMapHover()
+  modeAnnouncement.value = enabled
+    ? `${game.numberedStreetCount.value} numbered streets skipped. Score recalculated to ${game.percentMilesGuessed.value} percent.`
+    : `Numbered streets restored. Score recalculated to ${game.percentMilesGuessed.value} percent.`
+}
+
 function newGame(name) {
   const next = {
     id: crypto.randomUUID(),
@@ -114,11 +128,12 @@ function newGame(name) {
     guessed: [],
     percent: 0,
     gaveUp: false,
+    skipNumbered: false,
     createdAt: new Date().toISOString(),
   }
   games.value.unshift(next)
   currentGameId.value = next.id
-  game.reset()
+  game.restore([], false, false)
   query.value = ''
   writeGames()
   menuShown.value = false
@@ -130,7 +145,7 @@ function loadSavedGame(id) {
   if (!selected) return
   persistenceReady.value = false
   currentGameId.value = id
-  game.restore(selected.guessed ?? [], selected.gaveUp ?? false)
+  game.restore(selected.guessed ?? [], selected.gaveUp ?? false, selected.skipNumbered ?? false)
   query.value = ''
   writeGames()
   persistenceReady.value = true
@@ -196,6 +211,7 @@ function scheduleViewportSync() {
 
 watch(game.guessedKeys, saveCurrent, { deep: true })
 watch(game.gaveUp, saveCurrent)
+watch(game.skipNumberedStreets, saveCurrent)
 watch(game.percentMilesGuessed, (value, previous) => {
   if (value >= 100 && previous < 100) startCelebration()
 })
@@ -210,7 +226,11 @@ onMounted(async () => {
   readGames()
   try {
     await game.load()
-    game.restore(currentGame.value?.guessed ?? [], currentGame.value?.gaveUp ?? false)
+    game.restore(
+      currentGame.value?.guessed ?? [],
+      currentGame.value?.gaveUp ?? false,
+      currentGame.value?.skipNumbered ?? false,
+    )
     persistenceReady.value = true
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : 'The Manhattan street data could not be loaded.'
@@ -264,7 +284,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="ready && !game.hasResults.value" id="instructions">
-      Type the name of any Manhattan street
+      Type the name of any {{ game.skipNumberedStreets.value ? 'non-numbered ' : '' }}Manhattan street
       <span class="mobile-only">in the input below </span>
       and press "return."
     </div>
@@ -295,7 +315,13 @@ onBeforeUnmount(() => {
       <span v-if="game.percentMilesGuessed.value >= 100" class="small-screen-complete-message">– YOU DID IT!</span>
       <span v-else-if="game.gaveUp.value" class="small-screen-complete-message">– GAVE UP</span>
       <br />
-      <span class="small-screen-percent-title">{{ game.gaveUp.value ? 'final score · tap for streets' : 'mi. of street named' }}</span>
+      <span class="small-screen-percent-title">
+        {{ game.gaveUp.value
+          ? 'final score · tap for streets'
+          : game.skipNumberedStreets.value
+            ? 'non-numbered mi. named'
+            : 'mi. of street named' }}
+      </span>
     </div>
 
     <ResultsPanel
@@ -305,6 +331,7 @@ onBeforeUnmount(() => {
       :streets="game.gaveUp.value ? game.revealedStreetsSorted.value : game.guessedStreetsSorted.value"
       :sort-key="game.sortKey.value"
       :gave-up="game.gaveUp.value"
+      :skip-numbered="game.skipNumberedStreets.value"
       :guessed-count="game.guessedStreets.value.length"
       :missed-count="game.missedStreets.value.length"
       @sort="game.sortKey.value = $event"
@@ -319,6 +346,30 @@ onBeforeUnmount(() => {
         </a>
       </div>
     </div>
+
+    <label
+      v-if="ready"
+      class="skip-numbered-toggle"
+      :class="{ enabled: game.skipNumberedStreets.value, locked: game.isOver.value }"
+      :title="game.isOver.value ? 'Reset or start a new game to change this option.' : `Exclude ${game.numberedStreetCount.value} numbered streets from this game.`"
+    >
+      <input
+        type="checkbox"
+        role="switch"
+        :checked="game.skipNumberedStreets.value"
+        :disabled="game.isOver.value"
+        aria-describedby="skip-numbered-help"
+        @change="toggleNumberedStreets"
+      />
+      <span class="skip-numbered-track" aria-hidden="true"><span /></span>
+      <span class="skip-numbered-label">Skip numbered streets</span>
+      <span id="skip-numbered-help" class="visually-hidden">
+        {{ game.isOver.value
+          ? 'Reset or start a new game to change this option.'
+          : `${game.numberedStreetCount.value} numbered streets will be removed from the map and score.` }}
+      </span>
+    </label>
+    <span class="visually-hidden" aria-live="polite">{{ modeAnnouncement }}</span>
 
     <div class="lds-ring-wrap" :class="{ enabled: !ready && !fatalError }" role="status" :aria-label="loadingStatus" :aria-hidden="ready || !!fatalError">
       <div class="lds-ring"><div /><div /><div /><div /></div>

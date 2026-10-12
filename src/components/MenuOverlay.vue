@@ -118,7 +118,7 @@ function confirmGiveUp() {
       <div class="menu-page give-up-page" data-scope="overlay" :class="{ open: page === 'give-up' }">
         <h2 data-scope="overlay">Give Up?</h2>
         <p>
-          Your final score will stay at <strong>{{ percent }}%</strong>. We’ll reveal every mapped street so you can explore what you missed.
+          Your final score will stay at <strong>{{ percent }}%</strong>. We’ll reveal every street in this game so you can explore what you missed.
         </p>
         <p>You won’t be able to add more streets to this game, but you can reset it or start a new one.</p>
         <div class="give-up-actions">

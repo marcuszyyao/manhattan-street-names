@@ -99,6 +99,11 @@ export function compactStreetKey(input) {
   return standardizeStreetText(input).replace(/[^0-9A-Z]/g, '')
 }
 
+export function isNumberedStreetName(input) {
+  const standardized = standardizeStreetText(input)
+  return /^(?:(?:LITTLE W|[NSEW])\s+)?\d/.test(standardized)
+}
+
 export function stripStreetSuffix(input) {
   const tokens = standardizeStreetText(input).split(' ')
   while (tokens.length > 1 && STREET_SUFFIXES.has(tokens.at(-1))) tokens.pop()

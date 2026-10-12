@@ -384,7 +384,7 @@ watch(() => props.labelsShown, (shown) => {
   if (map?.getLayer('guessed-streets-text')) map.setLayoutProperty('guessed-streets-text', 'visibility', shown ? 'visible' : 'none')
 })
 
-defineExpose({ centerStreet, hoverStreet, recenter, resize })
+defineExpose({ centerStreet, hoverStreet, clearMapHover, recenter, resize })
 </script>
 
 <template>

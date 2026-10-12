@@ -6,6 +6,7 @@ const props = defineProps({
   streets: { type: Array, default: () => [] },
   sortKey: { type: String, default: 'found' },
   gaveUp: { type: Boolean, default: false },
+  skipNumbered: { type: Boolean, default: false },
   guessedCount: { type: Number, default: 0 },
   missedCount: { type: Number, default: 0 },
 })
@@ -64,7 +65,11 @@ defineExpose({ showPopup })
     <div ref="sidebarContent" class="sidebar-content">
       <div class="big-number">
         <div class="number">{{ percent }}%</div>
-        <div class="title">{{ gaveUp ? 'final score — miles of street named' : 'of miles of street named' }}</div>
+        <div class="title">
+          {{ gaveUp
+            ? `final score — ${skipNumbered ? 'non-numbered ' : ''}miles named`
+            : `of ${skipNumbered ? 'non-numbered ' : ''}street miles named` }}
+        </div>
       </div>
 
       <ul class="progress">

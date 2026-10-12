@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import {
   ordinal,
+  isNumberedStreetName,
   standardizeStreetText,
   streetExactKeys,
   streetInputKeys,
@@ -31,6 +32,22 @@ test('accepts common Manhattan street spellings', () => {
   assert.ok(streetExactKeys('Queensboro Bridge').includes('QUEENSBOROBRG'))
   assert.ok(streetExactKeys('Union Square').includes('UNIONSQ'))
   assert.ok(streetExactKeys('Ed Koch Queensboro Bridge').includes('QUEENSBORO'))
+})
+
+test('identifies principal numbered streets without hiding incidental numbers', () => {
+  for (const name of [
+    '42ND ST',
+    'E 103RD ST FOOTBRIDGE',
+    '6 1/2ND AVE',
+    '3 AV BRIDGE PED AND BIKE PATH',
+    'W 178-179TH ST PED OPAS',
+    'E 4 WALK',
+    'LITTLE W 12TH ST',
+  ]) assert.equal(isNumberedStreetName(name), true, name)
+
+  for (const name of ['BROADWAY', 'AVE A', 'PIER 40 DY', 'FDR DR EXIT 10 SB', 'I 95']) {
+    assert.equal(isNumberedStreetName(name), false, name)
+  }
 })
 
 test('generated game data has valid scoring and core Manhattan streets', async () => {
