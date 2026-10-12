@@ -54,7 +54,9 @@ export function useStreetGame() {
   const fallbackIndex = new Map()
   const streetsByKey = new Map()
 
-  const numberedStreetCount = computed(() => allStreets.value.filter(isNumberedStreet).length)
+  const numberedStreets = computed(() => allStreets.value.filter(isNumberedStreet))
+  const numberedStreetCount = computed(() => numberedStreets.value.length)
+  const numberedStreetReferences = computed(() => skipNumberedStreets.value ? numberedStreets.value : [])
   const streets = computed(() => skipNumberedStreets.value
     ? allStreets.value.filter((street) => !isNumberedStreet(street))
     : allStreets.value)
@@ -255,6 +257,7 @@ export function useStreetGame() {
     gaveUp,
     skipNumberedStreets,
     numberedStreetCount,
+    numberedStreetReferences,
     isEmpty,
     isOver,
     hasResults,

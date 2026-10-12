@@ -34,7 +34,7 @@ Run `npm run data:refresh` to rebuild the local GeoJSON and game data from the c
 
 Terminal directions are treated as endings too, so a broad guess such as `Park` includes `Park Ave S`, while an explicit `Park Avenue` or `Park Avenue South` remains specific. Directionless place names such as `Gramercy Park`, `Union Square`, and `Washington Square` reveal every mapped side. `Queensboro` and `Queensboro Bridge` are accepted for the Ed Koch Queensboro Bridge.
 
-The in-game **Skip numbered streets** switch removes streets whose principal name starts with a number from the map and scoring. Progress on numbered streets is preserved when switching modes, and each saved game remembers its setting.
+The in-game **Skip numbered streets** switch excludes streets whose principal name starts with a number from guessing, scoring, and the results list. Those streets remain visible in gray on the map and reveal their names when hovered or tapped. Progress on numbered streets is preserved when switching modes, and each saved game remembers its setting.
 
 NYC data is provided under the [NYC Open Data Terms of Use](https://opendata.cityofnewyork.us/overview/#termsofuse).
 

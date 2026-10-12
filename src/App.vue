@@ -117,8 +117,8 @@ function toggleNumberedStreets(event) {
   streetInput.value?.stopShaking()
   streetMap.value?.clearMapHover()
   modeAnnouncement.value = enabled
-    ? `${game.numberedStreetCount.value} numbered streets skipped. Score recalculated to ${game.percentMilesGuessed.value} percent.`
-    : `Numbered streets restored. Score recalculated to ${game.percentMilesGuessed.value} percent.`
+    ? `${game.numberedStreetCount.value} numbered streets are now shown in gray for reference and excluded from guessing, score, and results. Score recalculated to ${game.percentMilesGuessed.value} percent.`
+    : `Numbered streets are playable again. Score recalculated to ${game.percentMilesGuessed.value} percent.`
 }
 
 function newGame(name) {
@@ -269,6 +269,7 @@ onBeforeUnmount(() => {
     <StreetMap
       ref="streetMap"
       :streets="game.streets.value"
+      :numbered-street-references="game.numberedStreetReferences.value"
       :guessed-streets="game.guessedStreets.value"
       :missed-streets="game.missedStreets.value"
       :gave-up="game.gaveUp.value"
@@ -351,7 +352,7 @@ onBeforeUnmount(() => {
       v-if="ready"
       class="skip-numbered-toggle"
       :class="{ enabled: game.skipNumberedStreets.value, locked: game.isOver.value }"
-      :title="game.isOver.value ? 'Reset or start a new game to change this option.' : `Exclude ${game.numberedStreetCount.value} numbered streets from this game.`"
+      :title="game.isOver.value ? 'Reset or start a new game to change this option.' : `${game.numberedStreetCount.value} numbered streets stay visible in gray for reference, but are excluded from guessing, score, and results.`"
     >
       <input
         type="checkbox"
@@ -366,7 +367,7 @@ onBeforeUnmount(() => {
       <span id="skip-numbered-help" class="visually-hidden">
         {{ game.isOver.value
           ? 'Reset or start a new game to change this option.'
-          : `${game.numberedStreetCount.value} numbered streets will be removed from the map and score.` }}
+          : `${game.numberedStreetCount.value} numbered streets stay visible in gray for reference, but are excluded from guessing, score, and results.` }}
       </span>
     </label>
     <span class="visually-hidden" aria-live="polite">{{ modeAnnouncement }}</span>

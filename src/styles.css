@@ -1628,6 +1628,7 @@ ul.menu-options li[data-scope="overlay"]:hover {
   display: none;
 }
 .maplibregl-popup {
+  z-index: 1;
   pointer-events: none;
   font-family: Overpass, sans-serif;
   font-size: 16px;

@@ -6,6 +6,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 const MANHATTAN_BOUNDS = [-74.0479, 40.6793, -73.9062, 40.8822]
 const props = defineProps({
   streets: { type: Array, default: () => [] },
+  numberedStreetReferences: { type: Array, default: () => [] },
   guessedStreets: { type: Array, default: () => [] },
   missedStreets: { type: Array, default: () => [] },
   gaveUp: { type: Boolean, default: false },
@@ -39,19 +40,25 @@ function resolveStreetTarget(target) {
   const id = isObject ? target.id : target
   if (id === undefined || id === null || id === -1) return null
 
+  const hasExplicitKind = isObject && ['found', 'missed', 'reference'].includes(target.kind)
   const hasExplicitStatus = isObject && typeof target.guessed === 'boolean'
-  let guessed = hasExplicitStatus ? target.guessed : true
-  let feature = (guessed ? props.guessedStreets : props.missedStreets).find((street) => sameId(street.id, id))
+  let kind = hasExplicitKind ? target.kind : hasExplicitStatus ? (target.guessed ? 'found' : 'missed') : 'found'
+  const features = kind === 'reference'
+    ? props.numberedStreetReferences
+    : kind === 'found'
+      ? props.guessedStreets
+      : props.missedStreets
+  let feature = features.find((street) => sameId(street.id, id))
 
   // Preserve support for the old id-only API while callers migrate to
   // { id, guessed } targets.
-  if (!feature && !hasExplicitStatus) {
+  if (!feature && !hasExplicitKind && !hasExplicitStatus) {
     feature = props.missedStreets.find((street) => sameId(street.id, id))
-    guessed = false
+    kind = 'missed'
   }
 
-  if (!feature || (!guessed && !props.gaveUp)) return null
-  return { id: feature.id, guessed, feature }
+  if (!feature || (kind === 'missed' && !props.gaveUp)) return null
+  return { id: feature.id, kind, guessed: kind === 'found', feature }
 }
 
 function contributionLabel(feature, approximate = false) {
@@ -66,6 +73,7 @@ function addLayers() {
   map.addSource('land', { type: 'geojson', data: asset('land.geojson') })
   map.addSource('parks', { type: 'geojson', data: asset('parks.geojson') })
   map.addSource('all-streets', { type: 'geojson', data: featureCollection(props.streets) })
+  map.addSource('numbered-street-references', { type: 'geojson', data: featureCollection(props.numberedStreetReferences) })
   map.addSource('guessed-streets', { type: 'geojson', data: featureCollection(props.guessedStreets) })
   map.addSource('missed-streets', { type: 'geojson', data: featureCollection(props.missedStreets) })
   map.addSource('hovered-street', { type: 'geojson', data: emptyFeatureCollection() })
@@ -79,6 +87,15 @@ function addLayers() {
     paint: {
       'line-color': '#35346C',
       'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 5, 0.2, 13, 1.5, 18, 9, 22, 11],
+    },
+  })
+  map.addLayer({
+    id: 'numbered-street-references', type: 'line', source: 'numbered-street-references',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': '#85858F',
+      'line-opacity': 0.78,
+      'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 5, 0.4, 13, 1.8, 18, 10, 22, 12],
     },
   })
   map.addLayer({
@@ -135,6 +152,15 @@ function addLayers() {
     paint: { 'text-halo-color': '#000000', 'text-halo-width': 1.5, 'text-halo-blur': 0, 'text-color': '#BAF6FC' },
   })
   map.addLayer({
+    id: 'numbered-street-references-hitbox', type: 'line', source: 'numbered-street-references',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': '#000000',
+      'line-opacity': 0.001,
+      'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 5, 8, 13, 20, 18, 48, 22, 60],
+    },
+  })
+  map.addLayer({
     id: 'missed-streets-hitbox', type: 'line', source: 'missed-streets',
     layout: {
       'visibility': props.gaveUp ? 'visible' : 'none',
@@ -176,7 +202,7 @@ function showStreetPopup(target, lngLat, closeButton = false) {
   const resolved = resolveStreetTarget(target)
   if (!resolved || !map) return
   const samePopup = popup?.isOpen()
-    && popupTarget?.guessed === resolved.guessed
+    && popupTarget?.kind === resolved.kind
     && sameId(popupTarget.id, resolved.id)
     && popupCloseButton === closeButton
   if (samePopup) {
@@ -188,14 +214,16 @@ function showStreetPopup(target, lngLat, closeButton = false) {
   const name = document.createTextNode(`${resolved.feature.properties.display} `)
   const details = document.createElement('span')
   details.className = 'subtle'
-  details.textContent = resolved.guessed
+  details.textContent = resolved.kind === 'found'
     ? `Found · Added ${contributionLabel(resolved.feature)}`
-    : `Missed · Would add ${contributionLabel(resolved.feature, true)}`
+    : resolved.kind === 'missed'
+      ? `Missed · Would add ${contributionLabel(resolved.feature, true)}`
+      : 'Skipped · Not counted'
   content.append(name, details)
   popup?.remove()
-  popupTarget = { id: resolved.id, guessed: resolved.guessed }
+  popupTarget = { id: resolved.id, kind: resolved.kind }
   popupCloseButton = closeButton
-  const nextPopup = new maplibregl.Popup({ closeButton, closeOnClick: false, offset: [0, -4] })
+  const nextPopup = new maplibregl.Popup({ closeButton, closeOnClick: false, offset: [0, -4], maxWidth: '320px' })
     .setLngLat(lngLat)
     .setDOMContent(content)
     .addTo(map)
@@ -212,11 +240,17 @@ function interactiveFeatureAt(point) {
   if (!mapReady || !map) return null
   const layerIds = ['found-streets-hitbox']
   if (props.gaveUp) layerIds.push('missed-streets-hitbox')
+  if (props.numberedStreetReferences.length) layerIds.push('numbered-street-references-hitbox')
   const feature = map.queryRenderedFeatures(point, { layers: layerIds })[0]
   if (!feature) return null
+  const kind = feature.layer.id === 'found-streets-hitbox'
+    ? 'found'
+    : feature.layer.id === 'missed-streets-hitbox'
+      ? 'missed'
+      : 'reference'
   return {
     id: feature.id,
-    guessed: feature.layer.id === 'found-streets-hitbox',
+    kind,
   }
 }
 
@@ -256,10 +290,10 @@ function hoverStreet(target = -1, force = false) {
   if (!source) return
   const resolved = resolveStreetTarget(target)
   const unchanged = resolved
-    ? hoveredTarget?.guessed === resolved.guessed && sameId(hoveredTarget.id, resolved.id)
+    ? hoveredTarget?.kind === resolved.kind && sameId(hoveredTarget.id, resolved.id)
     : hoveredTarget === null
   if (unchanged && !force) return
-  hoveredTarget = resolved ? { id: resolved.id, guessed: resolved.guessed } : null
+  hoveredTarget = resolved ? { id: resolved.id, kind: resolved.kind } : null
   source.setData(resolved ? featureCollection([resolved.feature]) : emptyFeatureCollection())
 }
 
@@ -292,7 +326,7 @@ function centerStreet(target) {
       ? { top: topPadding, left: horizontalPadding, bottom: bottomPadding, right: horizontalPadding }
       : { top: 120, left: 270, bottom: 120, right: 270 },
   })
-  hoverStreet({ id: resolved.id, guessed: resolved.guessed })
+  hoverStreet({ id: resolved.id, kind: resolved.kind })
 }
 
 function recenter() {
@@ -313,11 +347,11 @@ function setMissedVisibility(shown) {
   for (const layerId of missedLayerIds) {
     if (map?.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility)
   }
-  if (!shown && hoveredTarget && !hoveredTarget.guessed) clearMapHover()
+  if (!shown && hoveredTarget?.kind === 'missed') clearMapHover()
 }
 
-function refreshHoveredStreet(guessed) {
-  if (hoveredTarget?.guessed !== guessed) return
+function refreshHoveredStreet(kind) {
+  if (hoveredTarget?.kind !== kind) return
   if (!resolveStreetTarget(hoveredTarget)) {
     clearMapHover()
     return
@@ -371,13 +405,17 @@ onBeforeUnmount(() => {
   map = undefined
 })
 watch(() => props.streets, (value) => map?.getSource('all-streets')?.setData(featureCollection(value)), { deep: true })
+watch(() => props.numberedStreetReferences, (value) => {
+  map?.getSource('numbered-street-references')?.setData(featureCollection(value))
+  refreshHoveredStreet('reference')
+}, { deep: true })
 watch(() => props.guessedStreets, (value) => {
   map?.getSource('guessed-streets')?.setData(featureCollection(value))
-  refreshHoveredStreet(true)
+  refreshHoveredStreet('found')
 }, { deep: true })
 watch(() => props.missedStreets, (value) => {
   map?.getSource('missed-streets')?.setData(featureCollection(value))
-  refreshHoveredStreet(false)
+  refreshHoveredStreet('missed')
 }, { deep: true })
 watch(() => props.gaveUp, setMissedVisibility)
 watch(() => props.labelsShown, (shown) => {

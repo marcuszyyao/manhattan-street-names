@@ -124,16 +124,23 @@ test('a nonexistent explicit direction does not broaden to the whole group', asy
   assert.deepEqual(displays(game), [])
 })
 
-test('skip-numbered mode filters the map and rebases scoring', async () => {
+test('skip-numbered mode keeps numbered streets as map-only references and rebases scoring', async () => {
   const game = await loadedGame()
   const expectedLength = namedStreets.reduce((sum, street) => sum + street.properties.miles, 0)
 
   assert.equal(game.numberedStreetCount.value, numberedStreets.length)
   assert.equal(game.streets.value.length, data.streets.length)
+  assert.equal(game.numberedStreetReferences.value.length, 0)
   assert.equal(game.setSkipNumberedStreets(true), true)
   assert.equal(game.skipNumberedStreets.value, true)
   assert.equal(game.streets.value.length, namedStreets.length)
   assert.ok(game.streets.value.every((street) => !isNumberedStreetName(street.properties.display)))
+  assert.equal(game.numberedStreetReferences.value.length, numberedStreets.length)
+  assert.ok(game.numberedStreetReferences.value.every((street) => isNumberedStreetName(street.properties.display)))
+  const activeKeys = new Set(game.streets.value.map((street) => street.properties.clean))
+  const referenceKeys = new Set(game.numberedStreetReferences.value.map((street) => street.properties.clean))
+  assert.equal([...referenceKeys].some((key) => activeKeys.has(key)), false)
+  assert.equal(new Set([...activeKeys, ...referenceKeys]).size, data.streets.length)
   assert.ok(Math.abs(game.totalLength.value - expectedLength) < 0.000001)
 
   assert.deepEqual(game.submitName('42nd Street'), { valid: false, added: false })
@@ -156,11 +163,13 @@ test('toggling numbered streets preserves existing progress without scoring it',
   game.setSkipNumberedStreets(true)
   assert.deepEqual(game.guessedKeys.value, savedKeys)
   assert.deepEqual(displays(game), ['BROADWAY'])
+  assert.ok(game.numberedStreetReferences.value.some((street) => street.properties.display === '1ST ST'))
   assert.ok(game.percentMilesGuessed.value > fullScore)
 
   game.setSkipNumberedStreets(false)
   assert.deepEqual(game.guessedKeys.value, savedKeys)
   assert.deepEqual(displays(game), ['1ST ST', 'BROADWAY'])
+  assert.equal(game.numberedStreetReferences.value.length, 0)
   assert.equal(game.percentMilesGuessed.value, fullScore)
 })
 
@@ -173,6 +182,8 @@ test('give up and completion only use eligible streets in skip-numbered mode', a
   assert.equal(game.guessedStreets.value.length + game.missedStreets.value.length, namedStreets.length)
   assert.equal(game.revealedStreetsSorted.value.length, namedStreets.length)
   assert.ok(game.revealedStreetsSorted.value.every((street) => !isNumberedStreetName(street.properties.display)))
+  assert.equal(game.numberedStreetReferences.value.length, numberedStreets.length)
+  assert.ok(game.numberedStreetReferences.value.every((street) => isNumberedStreetName(street.properties.display)))
 
   const completed = await loadedGame()
   completed.restore(namedStreets.map((street) => street.properties.clean), false, true)
@@ -191,6 +202,7 @@ test('restore round-trips skip-numbered mode while reset preserves it', async ()
   assert.equal(game.skipNumberedStreets.value, true)
   assert.deepEqual(game.guessedKeys.value, keys)
   assert.deepEqual(displays(game), ['BROADWAY'])
+  assert.equal(game.numberedStreetReferences.value.length, numberedStreets.length)
 
   game.reset()
   assert.equal(game.skipNumberedStreets.value, true)
